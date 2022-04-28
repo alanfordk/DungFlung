@@ -3,15 +3,18 @@ using UnityEngine.SceneManagement;
 
 public class Poop : MonoBehaviour
 {
-    private Vector3 _initialPosition;
-    private bool _poopWasLaunched;
-    private float _timeSittingAround;
-    private Rigidbody2D poopRB2D;
-    private LineRenderer poopLineRen;
+    public Vector2 _initialPosition;
+    public GameObject poopPrefab;
+
+
+    public bool _poopWasLaunched;
+    private float _timeSinceLaunched;
+    public Rigidbody2D poopRB2D;
+    public LineRenderer poopLineRen;
 
     public AudioManager audioManager;
 
-    [SerializeField] private float _launchPower = 45;
+    [SerializeField] public float _launchPower = 1f;
     
 
     private void Awake()
@@ -26,59 +29,65 @@ public class Poop : MonoBehaviour
 
     private void Update()
     {
-        if (_poopWasLaunched && poopRB2D.velocity.magnitude <= 0.1)
+        if (_poopWasLaunched && poopRB2D.velocity.magnitude < .1)
         {
-            _timeSittingAround += Time.deltaTime;
+            _timeSinceLaunched += Time.deltaTime;
         }
 
         if (transform.position.y > 10 || 
             transform.position.y < -10 ||
             transform.position.x > 10 ||
-            transform.position.x < -10 ||
-            _timeSittingAround > .2)
+            transform.position.x < -10)
         {
             resetPoop();
         }
-
-        //update line renderer
-        poopLineRen.SetPosition(1, _initialPosition);
-        poopLineRen.SetPosition(0, transform.position);
+        if (_timeSinceLaunched > .3)
+        {
+            resetPoop();
+        }
+            
     }
 
-    private void OnMouseDown()
-    {
-        GetComponent<SpriteRenderer>().color = Color.red;
-        poopLineRen.enabled = true;
-    }
-
-    private void OnMouseUp()
-    {
-        GetComponent<SpriteRenderer>().color = Color.white;
-
-        Vector2 directionToInitialPosition = _initialPosition - transform.position;
-        poopRB2D.AddForce(directionToInitialPosition * _launchPower);
-        poopRB2D.gravityScale = 1;
-        _poopWasLaunched = true;
-        poopLineRen.enabled = false;
-
-        
-        //audioManager.Play("MonkeyThrow");
-    }
-
-
-    private void OnMouseDrag()
-    {
-        Vector3 newPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        transform.position = new Vector3(newPosition.x, newPosition.y);
-    }
-
+    
     public void resetPoop()
     {
         transform.position = _initialPosition;
         transform.rotation = Quaternion.identity;
+        poopRB2D.angularVelocity = 0;
         poopRB2D.velocity = Vector3.zero;
         poopRB2D.gravityScale = 0;
         _poopWasLaunched = false;
-        _timeSittingAround = 0;
+        _timeSinceLaunched = 0;
+        
     }
+
+    public Vector2[] Plot(Rigidbody2D rigidbody, Vector2 pos, Vector2 velocity, int steps)
+    {
+        Vector2[] results = new Vector2[steps];
+
+        float timestep = Time.fixedDeltaTime / Physics2D.velocityIterations;
+        Vector2 gravityAccel = Physics2D.gravity * 1 * timestep * timestep;
+
+        float drag = 1f - timestep * rigidbody.drag;
+        Vector2 moveStep = velocity * timestep;
+
+        for (int i = 0; i < steps; i++)
+        {
+            moveStep += gravityAccel;
+            moveStep *= drag;
+            pos += moveStep;
+            results[i] = pos;
+        }
+        return results;
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.tag == "Monkey")
+        {
+            Physics2D.IgnoreCollision(collision.gameObject.GetComponent<PolygonCollider2D>(), GetComponent<PolygonCollider2D>());
+        }
+
+    }
+
 }
