@@ -14,8 +14,8 @@ public class Poop : MonoBehaviour
 
     public AudioManager audioManager;
 
-    [SerializeField] public float _launchPower = 1f;
-    
+    public float _launchPower = 3f;
+
 
     private void Awake()
     {
@@ -24,7 +24,10 @@ public class Poop : MonoBehaviour
         //audioManager = GameObject.FindGameObjectWithTag("AudioManager").GetComponent<AudioManager>();
 
         _initialPosition = transform.position;
-        gameObject.tag = "Poop";
+        gameObject.tag = "poop";
+        gameObject.layer = 6;
+        Physics2D.IgnoreLayerCollision(6, 6, true);
+        Physics2D.IgnoreLayerCollision(6, 7, true);
     }
 
     private void Update()
@@ -34,21 +37,18 @@ public class Poop : MonoBehaviour
             _timeSinceLaunched += Time.deltaTime;
         }
 
-        if (transform.position.y > 10 || 
+        if (transform.position.y > 10 ||
             transform.position.y < -10 ||
             transform.position.x > 10 ||
-            transform.position.x < -10)
+            transform.position.x < -10 ||
+            _timeSinceLaunched > .3)
         {
-            resetPoop();
+            destroyPoop();
         }
-        if (_timeSinceLaunched > .3)
-        {
-            resetPoop();
-        }
-            
+
     }
 
-    
+
     public void resetPoop()
     {
         transform.position = _initialPosition;
@@ -58,7 +58,12 @@ public class Poop : MonoBehaviour
         poopRB2D.gravityScale = 0;
         _poopWasLaunched = false;
         _timeSinceLaunched = 0;
-        
+
+    }
+
+    public void movePosition(Vector2 newPosition)
+    {
+        transform.position = newPosition;
     }
 
     public Vector2[] Plot(Rigidbody2D rigidbody, Vector2 pos, Vector2 velocity, int steps)
@@ -85,9 +90,27 @@ public class Poop : MonoBehaviour
     {
         if (collision.gameObject.tag == "Monkey")
         {
-            Physics2D.IgnoreCollision(collision.gameObject.GetComponent<PolygonCollider2D>(), GetComponent<PolygonCollider2D>());
+            Physics2D.IgnoreCollision(collision.gameObject.GetComponent<CircleCollider2D>(), GetComponent<PolygonCollider2D>());
         }
 
+        if(collision.gameObject.tag == "poop")
+        {
+            Physics2D.IgnoreCollision(collision.gameObject.GetComponent<PolygonCollider2D>(), GetComponent<PolygonCollider2D>());
+            Debug.Log("poop colision");
+        }
+
+        if (collision.gameObject.tag == "Zombie")
+        {
+            Destroy(gameObject);
+        }
+
+
+
+    }
+
+    public void destroyPoop()
+    {
+        Destroy(gameObject);
     }
 
 }

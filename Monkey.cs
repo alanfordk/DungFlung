@@ -9,18 +9,26 @@ public class Monkey : MonoBehaviour
     public int lifes;
     public TextMeshProUGUI scoreGUI;
     public Poop poop;
+    public float generatePoopTime = .1f;
+    public List<Poop> poops;
+    public Vector2 _initialPosition;
+
 
     Vector2 DragStartPos;
     void Awake()
     {
         gameObject.tag = "Monkey";
-        poop = GameObject.FindGameObjectWithTag("Poop").GetComponent<Poop>();
+        gameObject.layer = 7;
+        poop = GameObject.FindGameObjectWithTag("poop").GetComponent<Poop>();
+        poops.Add(poop);
+        _initialPosition = poop.transform.position;
     }
 
     void Start()
     {
         score = 0;
         lifes = 5;
+
     }
 
     void Update()
@@ -30,55 +38,89 @@ public class Monkey : MonoBehaviour
 
     private void OnMouseDown()
     {
-        poop.GetComponent<SpriteRenderer>().color = Color.red;
-        poop.poopLineRen.enabled = true;
+        if(poops.Count > 0)
+        {
 
-        DragStartPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            poops[poops.Count-1].GetComponent<SpriteRenderer>().color = Color.red;
+            poops[poops.Count - 1].poopLineRen.enabled = true;
+
+            DragStartPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        }
+        
     }
 
     private void OnMouseUp()
     {
-        GetComponent<SpriteRenderer>().color = Color.white;
-
-        poop.poopRB2D.gravityScale = 1;
-        poop.poopLineRen.enabled = false;
-
-        Vector2 DragEndPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 _velocity = (DragEndPosition - DragStartPos) * poop._launchPower;
-        if (!poop._poopWasLaunched)
+        if(poops.Count > 0)
         {
-            poop.poopRB2D.velocity = -_velocity;
+
+            poops[poops.Count - 1].GetComponent<SpriteRenderer>().color = Color.white;
+            poops[poops.Count - 1].poopRB2D.gravityScale = 1;
+            poops[poops.Count - 1].poopLineRen.enabled = false;
+
+            Vector2 DragEndPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2 _velocity = (DragEndPosition - DragStartPos) * poops[poops.Count-1]._launchPower;
+            if (!poops[poops.Count - 1]._poopWasLaunched)
+            {
+                Debug.Log(_velocity);
+                poops[poops.Count - 1].poopRB2D.velocity = -_velocity;
+            }
+
+            poops[poops.Count - 1]._poopWasLaunched = true;
+            StartCoroutine(generatePoop());
+
+            //audioManager.Play("MonkeyThrow");
         }
-        poop._poopWasLaunched = true;
-        //audioManager.Play("MonkeyThrow");
+
+
+
     }
 
     private void OnMouseDrag()
     {
-        Vector2 newPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 DragEndPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        Vector2 _velocity = (poop._initialPosition - newPosition) * poop._launchPower;
-        Vector2[] trajectory = poop.Plot(poop.poopRB2D, (Vector2)transform.position, _velocity, 400);
-
-        poop.poopLineRen.positionCount = trajectory.Length;
-
-        Vector3[] positions = new Vector3[trajectory.Length];
-        for (int i = 0; i < trajectory.Length; i++)
+        if(poops.Count > 0)
         {
-            positions[i] = trajectory[i];
+            Vector2 newPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2 DragEndPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2 _velocity = (poops[poops.Count - 1]._initialPosition - newPosition) * poops[poops.Count - 1]._launchPower;
+            Vector2[] trajectory = poops[poops.Count - 1].Plot(poops[poops.Count - 1].poopRB2D, (Vector2)transform.position, _velocity, 400);
+
+            poops[poops.Count - 1].poopLineRen.positionCount = trajectory.Length;
+
+            Vector3[] positions = new Vector3[trajectory.Length];
+            for (int i = 0; i < trajectory.Length; i++)
+            {
+                positions[i] = trajectory[i];
+            }
+            poops[poops.Count - 1].poopLineRen.SetPositions(positions);
         }
-        poop.poopLineRen.SetPositions(positions);
+        
     }
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (collision.gameObject.tag == "Poop" || collision.gameObject.tag == "Zombie" || collision.gameObject.tag == "smallZombie")
+        if (collision.gameObject.tag == "poop" || collision.gameObject.tag == "Zombie" || collision.gameObject.tag == "smallZombie")
         {
-            Physics2D.IgnoreCollision(collision.gameObject.GetComponent<PolygonCollider2D>(), GetComponent<PolygonCollider2D>());
+            Physics2D.IgnoreCollision(collision.gameObject.GetComponent<PolygonCollider2D>(), GetComponent<CircleCollider2D>());
         }
     }
 
+    IEnumerator generatePoop()
+    {
 
+        yield return new WaitForSeconds(generatePoopTime);
+        createPoop();
+    }
+
+    public void createPoop()
+    {
+        Poop a = Instantiate(poops[poops.Count -1]);
+        a.resetPoop();
+        a.movePosition(_initialPosition);
+        poops.RemoveAt(poops.Count - 1);
+        poops.Add(a);
+
+    }
 
     public void updateScore()
     {
